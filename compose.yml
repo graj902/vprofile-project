@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   vprodb:
     build:
@@ -10,12 +12,16 @@ services:
       - vprodbdata:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=vprodbpass
+    networks:
+      - vpro-net
 
   vprocache01:
     image: memcached:latest
     container_name: vprocache01
     ports:
       - "11211:11211"
+    networks:
+      - vpro-net
 
   vpromq01:
     image: rabbitmq:latest
@@ -25,6 +31,8 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - vpro-net
 
   vproapp:
     build:
@@ -35,6 +43,12 @@ services:
       - "8080:8080"
     volumes:
       - vproappdata:/usr/local/tomcat/webapps
+    networks:
+      - vpro-net
+    depends_on:
+      - vprodb
+      - vprocache01
+      - vpromq01
 
   vproweb:
     build:
@@ -43,7 +57,15 @@ services:
     container_name: vproweb
     ports:
       - "80:80"
+    depends_on:
+      - vproapp
+    networks:
+      - vpro-net
 
 volumes:
   vprodbdata: {}
   vproappdata: {}
+
+networks:
+  vpro-net:
+    driver: bridge
