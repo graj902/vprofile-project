@@ -13,7 +13,7 @@ pipeline {
         CENTRAL_REPO = 'vprofile-maven-central'
         NEXUSIP = '172.31.42.72'
         NEXUSPORT = '8081'
-        NEXUS_GRP_REPO = 'vprofile--maven-group'
+        NEXUS_GRP_REPO = 'vprofile--maven-group' // Your correct double-dash name
         NEXUS_LOGIN = 'nexuslogin'
     }
 
