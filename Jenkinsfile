@@ -74,6 +74,25 @@ pipeline {
                     waitForQualityGate abortPipeline: true
                 }
             }
+        }  
+        stage("UploadArtifact"){
+            steps{
+                nexusArtifactUploader(
+                  nexusVersion: 'nexus3',
+                  protocol: 'http',
+                  nexusUrl: "${NEXUSIP}:${NEXUSPORT}",
+                  groupId: 'QA',
+                  version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
+                  repository: "${RELEASE_REPO}",
+                  credentialsId: "${nexus-login}",
+                  artifacts: [
+                    [artifactId: 'vproapp',
+                     classifier: '',
+                     file: 'target/vprofile-v2.war',
+                     type: 'war']
+                  ]
+                )
+            }
         }
     } // <-- The 'stages' block ENDS HERE
 
@@ -86,7 +105,8 @@ pipeline {
             timeout(time: 10, unit: 'MINUTES') {
                 waitForQualityGate abortPipeline: true
             }
-        }
+        } 
+        
         
         failure {
             echo 'Build failed!'
