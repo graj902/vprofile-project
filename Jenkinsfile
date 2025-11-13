@@ -22,9 +22,6 @@ pipeline {
         NEXUSIP = '172.31.42.72'
         NEXUSPORT = '8081'
         NEXUS_GRP_REPO = 'vprofile--maven-group'
-        
-        // 1. THIS IS THE FIRST FIX
-        // The variable now matches your Jenkins Credential ID
         NEXUS_LOGIN_ID = 'nexus-login' 
 
         // --- SonarQube Variables ---
@@ -71,8 +68,6 @@ pipeline {
             }
         } 
         
-        // 2. THIS IS THE SECOND FIX
-        // This stage now correctly uses the 'NEXUS_LOGIN_ID' variable
         stage("UploadArtifact"){
             steps{
                 nexusArtifactUploader(
@@ -82,7 +77,7 @@ pipeline {
                   groupId: 'QA',
                   version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
                   repository: "${env.RELEASE_REPO}",
-                  credentialsId: env.NEXUS_LOGIN_ID, // <-- THIS IS THE FIX
+                  credentialsId: env.NEXUS_LOGIN_ID,
                   artifacts: [
                     [artifactId: 'vproapp',
                      classifier: '',
@@ -94,15 +89,13 @@ pipeline {
         }
     } // <-- The 'stages' block ENDS HERE
 
-    //
-    // 3. THIS IS THE FINAL, CORRECT 'post' BLOCK
-    //
     post {
         always {
             archiveArtifacts artifacts: 'target/vprofile-v2*.war', fingerprint: true
             
             timeout(time: 10, unit: 'MINUTES') {
-                waitForQualityGate abortPipeline: true, unstable: true
+                // This is the corrected Quality Gate syntax
+                waitForQualityGate abortPipeline: true
             }
 
             echo 'Sending Slack notification...'
@@ -113,4 +106,4 @@ pipeline {
             )
         }
     }
-}
+} // <-- This was the missing '}'
