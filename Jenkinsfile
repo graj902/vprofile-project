@@ -84,7 +84,7 @@ pipeline {
                 )
             }
         }
-    } // <-- The 'stages' block ENDS HERE
+    // <-- The 'stages' block ENDS HERE
     post {
         always {
             echo 'Slack Notifications.'
