@@ -1,7 +1,10 @@
-def COLOR_MAP = [
-    'SUCCESS': 'good', 
-    'FAILURE': 'danger',
+// This color map MUST be outside the pipeline block
+def colorMap = [
+    'SUCCESS': 'good',
+    'UNSTABLE': 'warning',
+    'FAILURE': 'danger'
 ]
+
 pipeline {
     agent any
     tools {
@@ -20,11 +23,15 @@ pipeline {
         NEXUSPORT = '8081'
         NEXUS_GRP_REPO = 'vprofile--maven-group'
         
-        // 1. FIXED: Correct variable name and credential ID (with dash)
+        // 1. THIS IS THE FIRST FIX
+        // The variable now matches your Jenkins Credential ID
         NEXUS_LOGIN_ID = 'nexus-login' 
 
         // --- SonarQube Variables ---
         SONAR_SERVER = 'Sonar-server'
+
+        // --- Slack Variables ---
+        SLACK_CHANNEL = 'jenkins-cicd'
     }
 
     stages {
@@ -63,9 +70,9 @@ pipeline {
                 }
             }
         } 
-    } 
         
-        // 2. FIXED: The 'UploadArtifact' stage now uses the correct variable
+        // 2. THIS IS THE SECOND FIX
+        // This stage now correctly uses the 'NEXUS_LOGIN_ID' variable
         stage("UploadArtifact"){
             steps{
                 nexusArtifactUploader(
@@ -85,18 +92,25 @@ pipeline {
                 )
             }
         }
-    // <-- The 'stages' block ENDS HERE
+    } // <-- The 'stages' block ENDS HERE
+
+    //
+    // 3. THIS IS THE FINAL, CORRECT 'post' BLOCK
+    //
     post {
         always {
-            echo 'Slack Notifications.'
-            slackSend channel: 'jenkins-cicd',
-                color: COLOR_MAP[currentBuild.currentResult],
-                message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}"
+            archiveArtifacts artifacts: 'target/vprofile-v2*.war', fingerprint: true
+            
+            timeout(time: 10, unit: 'MINUTES') {
+                waitForQualityGate abortPipeline: true, unstable: true
+            }
+
+            echo 'Sending Slack notification...'
+            slackSend (
+                color: colorMap.get(currentBuild.currentResult, 'warning'), 
+                channel: env.SLACK_CHANNEL,
+                message: "${currentBuild.currentResult}: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} \nMore info at: ${env.BUILD_URL}"
+            )
         }
     }
 }
-    
-        
-        
-       
-    
