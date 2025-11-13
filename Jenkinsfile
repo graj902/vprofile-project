@@ -3,8 +3,6 @@ pipeline {
     tools {
         maven "Maven3.9"
         jdk "JDK17"
-        // This is the line I removed:
-        // sonar 'Sonar-scanner'  <-- THIS IS NOT VALID SYNTAX HERE
     }
     
     environment {
@@ -17,10 +15,11 @@ pipeline {
         NEXUSIP = '172.31.42.72'
         NEXUSPORT = '8081'
         NEXUS_GRP_REPO = 'vprofile--maven-group'
-        NEXUS_LOGIN_ID = 'nexuslogin'
+        
+        // 1. FIXED: Correct variable name and credential ID (with dash)
+        NEXUS_LOGIN_ID = 'nexus-login' 
 
         // --- SonarQube Variables ---
-        // This name MUST match what you configured in Manage Jenkins > System
         SONAR_SERVER = 'Sonar-server'
     }
 
@@ -45,16 +44,10 @@ pipeline {
 
         stage('SonarQube Analysis') {
             environment {
-                // THIS IS THE CORRECT WAY to load the SonarQube Scanner tool.
-                // This 'tool' step finds the scanner you named 'Sonar-scanner'
-                // in Manage Jenkins > Tools.
                 scannerHome = tool 'Sonar-scanner'
             }
             steps {
-                // This wrapper gets the URL and Token from your 'Sonar-server' configuration
                 withSonarQubeEnv(env.SONAR_SERVER) { 
-                    
-                    // This command uses the 'scannerHome' variable from the environment block above
                     sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
                            -Dsonar.projectName=vprofile-repo \
                            -Dsonar.projectVersion=1.0 \
@@ -66,25 +59,18 @@ pipeline {
                 }
             }
         } 
-        stage("Quality Gate") {
-            steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    // Parameter indicates whether to set pipeline to UNSTABLE if Quality Gate fails
-                    // true = set pipeline to UNSTABLE, false = don't
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }  
+        
+        // 2. FIXED: The 'UploadArtifact' stage now uses the correct variable
         stage("UploadArtifact"){
             steps{
                 nexusArtifactUploader(
                   nexusVersion: 'nexus3',
                   protocol: 'http',
-                  nexusUrl: "${NEXUSIP}:${NEXUSPORT}",
+                  nexusUrl: "${env.NEXUSIP}:${env.NEXUSPORT}",
                   groupId: 'QA',
                   version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
-                  repository: "${RELEASE_REPO}",
-                  credentialsId: "${nexus-login}",
+                  repository: "${env.RELEASE_REPO}",
+                  credentialsId: env.NEXUS_LOGIN_ID, // <-- THIS IS THE FIX
                   artifacts: [
                     [artifactId: 'vproapp',
                      classifier: '',
@@ -99,14 +85,14 @@ pipeline {
     post {
         success {
             echo 'Build was successful. Archiving the .war file...'
-            archiveArtifacts artifacts: 'target/vprofile-v2.war', fingerprint: true
+            // We use a wildcard (*) to archive the timestamped .war file
+            archiveArtifacts artifacts: 'target/vprofile-v2*.war', fingerprint: true
 
-            // This is the Quality Gate, it runs after all stages succeed
+            // 3. This is the correct and only Quality Gate check
             timeout(time: 10, unit: 'MINUTES') {
                 waitForQualityGate abortPipeline: true
             }
         } 
-        
         
         failure {
             echo 'Build failed!'
