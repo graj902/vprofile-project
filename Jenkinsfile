@@ -92,21 +92,9 @@ pipeline {
                 message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}"
         }
     }
-
-    post {
-        success {
-            echo 'Build was successful. Archiving the .war file...'
-            // We use a wildcard (*) to archive the timestamped .war file
-            archiveArtifacts artifacts: 'target/vprofile-v2*.war', fingerprint: true
-
-            // 3. This is the correct and only Quality Gate check
-            timeout(time: 10, unit: 'MINUTES') {
-                waitForQualityGate abortPipeline: true
-            }
-        } 
-        
-        failure {
-            echo 'Build failed!'
-        }
-    }
 }
+    
+        
+        
+       
+    
