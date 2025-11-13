@@ -17,7 +17,7 @@ pipeline {
         NEXUSIP = '172.31.42.72'
         NEXUSPORT = '8081'
         NEXUS_GRP_REPO = 'vprofile--maven-group'
-        NEXUS_LOGIN = 'nexuslogin'
+        NEXUS_LOGIN_ID = 'nexuslogin'
 
         // --- SonarQube Variables ---
         // This name MUST match what you configured in Manage Jenkins > System
