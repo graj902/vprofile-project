@@ -25,7 +25,7 @@ pipeline {
         } 
         stage ('post build') {
             success {
-                # neeed to artifact upload script here
+                
                 sh 'echo "Build Successful"'
 
             }
