@@ -3,8 +3,8 @@ pipeline {
     tools {
         maven "Maven3.9"
         jdk "JDK17"
-        // This name MUST match what you configured in Manage Jenkins > Tools
-        sonar 'Sonar-scanner' 
+        // This is the line I removed:
+        // sonar 'Sonar-scanner'  <-- THIS IS NOT VALID SYNTAX HERE
     }
     
     environment {
@@ -43,20 +43,18 @@ pipeline {
             }
         }
 
-        //
-        // THIS IS YOUR STAGE, NOW IN THE CORRECT LOCATION
-        //
         stage('SonarQube Analysis') {
             environment {
-                // This finds the tool named 'Sonar-scanner' (from the 'tools' block) 
-                // and puts its location into a new variable called 'scannerHome'
+                // THIS IS THE CORRECT WAY to load the SonarQube Scanner tool.
+                // This 'tool' step finds the scanner you named 'Sonar-scanner'
+                // in Manage Jenkins > Tools.
                 scannerHome = tool 'Sonar-scanner'
             }
             steps {
                 // This wrapper gets the URL and Token from your 'Sonar-server' configuration
                 withSonarQubeEnv(env.SONAR_SERVER) { 
                     
-                    // This is Imran's 'sonar-scanner' command with the -Dsonar.java.binaries path FIXED
+                    // This command uses the 'scannerHome' variable from the environment block above
                     sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
                            -Dsonar.projectName=vprofile-repo \
                            -Dsonar.projectVersion=1.0 \
