@@ -63,6 +63,7 @@ pipeline {
                 }
             }
         } 
+    } 
         
         // 2. FIXED: The 'UploadArtifact' stage now uses the correct variable
         stage("UploadArtifact"){
