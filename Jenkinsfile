@@ -3,9 +3,13 @@ pipeline {
     tools {
         maven "Maven3.9"
         jdk "JDK17"
+        // 1. ADD THE SONARSCANNER TOOL NAME
+        // This MUST match the name in Manage Jenkins > Tools
+        sonar 'Sonar-scanner' 
     }
     
     environment {
+        // --- Nexus Variables ---
         SNAP_REPO = 'vprofile-snapshot'
         NEXUS_USER = 'admin'
         NEXUS_PASS = 'Maafa143@#'
@@ -15,6 +19,10 @@ pipeline {
         NEXUSPORT = '8081'
         NEXUS_GRP_REPO = 'vprofile--maven-group'
         NEXUS_LOGIN = 'nexuslogin'
+
+        // --- SonarQube Variables ---
+        // This MUST match the name in Manage Jenkins > System
+        SONAR_SERVER = 'Sonar-server' 
     }
 
     stages {
@@ -26,6 +34,7 @@ pipeline {
         
         stage('Test'){
             steps {
+                // We must run 'test' to generate the JaCoCo report for SonarQube
                 sh 'mvn -s settings.xml test'
             }
         } 
@@ -35,45 +44,36 @@ pipeline {
                 sh 'mvn -s settings.xml checkstyle:checkstyle'
             }
         }
-    }  
-    stage('CODE ANALYSIS with SONARQUBE') {
-          
-		  environment {
-             scannerHome = tool 'sonar-scanner'
-          }
 
-          steps {
-            withSonarQubeEnv('sonar-pro') {
-               sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
-                   -Dsonar.projectName=vprofile-repo \
-                   -Dsonar.projectVersion=1.0 \
-                   -Dsonar.sources=src/ \
-                   -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
-                   -Dsonar.junit.reportsPath=target/surefire-reports/ \
-                   -Dsonar.jacoco.reportsPath=target/jacoco.exec \
-                   -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml'''
+        // 2. ADD THE SONARQUBE STAGE (INSIDE 'stages')
+        stage('SonarQube Analysis') {
+            steps {
+                // This wrapper gets the URL and Token from your 'Sonar-server' configuration
+                withSonarQubeEnv(env.SONAR_SERVER) {
+                    
+                    // This is the correct command. It's a Maven project,
+                    // so we use the Maven sonar plugin.
+                    sh 'mvn -s settings.xml sonar:sonar'
+                }
             }
+        }
+    } // <-- The 'stages' block ENDS HERE
 
-            timeout(time: 10, unit: 'MINUTES') {
-               waitForQualityGate abortPipeline: true
-            }
-          }
-        }// <-- The 'stages' block ENDS HERE
-
-    //
-    // THIS 'post' BLOCK IS NOW SYNTACTICALLY CORRECT
-    // (I have removed the extra 'steps' wrappers)
-    //
     post {
         success {
             echo 'Build was successful. Archiving the .war file...'
-            // These commands are now directly inside the 'success' block
             archiveArtifacts artifacts: 'target/vprofile-v2.war', fingerprint: true
+
+            // 3. ADD THE QUALITY GATE CHECK
+            // This pauses the pipeline and waits for the SonarQube webhook
+            // to send back a "PASSED" or "FAILED" status.
+            timeout(time: 1, unit: 'MINUTES') {
+                waitForQualityGate abortPipeline: true
+            }
         }
         
         failure {
             echo 'Build failed!'
-            // This is where you would add a Slack notification
         }
     }
 }
