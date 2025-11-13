@@ -13,51 +13,44 @@ pipeline {
         CENTRAL_REPO = 'vprofile-maven-central'
         NEXUSIP = '172.31.42.72'
         NEXUSPORT = '8081'
-        NEXUS_GRP_REPO = 'vprofile--maven-group' // Your correct double-dash name
+        NEXUS_GRP_REPO = 'vprofile--maven-group'
         NEXUS_LOGIN = 'nexuslogin'
     }
 
     stages {
         stage('Build'){
             steps {
-                // Use 'package' to create the .war, skip tests
                 sh 'mvn -s settings.xml -DskipTests package'
             }
         } 
         
         stage('Test'){
             steps {
-                // Run tests to generate code coverage data
                 sh 'mvn -s settings.xml test'
             }
         } 
         
         stage ('Checkstyle') {
             steps {
-                // Run static code analysis
                 sh 'mvn -s settings.xml checkstyle:checkstyle'
             }
         }
     } // <-- The 'stages' block ENDS HERE
 
     //
-    // This is the correct 'post' block that runs AFTER all stages
+    // THIS 'post' BLOCK IS NOW SYNTACTICALLY CORRECT
+    // (I have removed the extra 'steps' wrappers)
     //
     post {
         success {
-            steps {
-                echo 'Build was successful. Archiving the .war file...'
-                // This command finds the .war file and saves it
-                // as a build artifact, just like in the video.
-                archiveArtifacts artifacts: 'target/vprofile-v2.war', fingerprint: true
-            }
+            echo 'Build was successful. Archiving the .war file...'
+            // These commands are now directly inside the 'success' block
+            archiveArtifacts artifacts: 'target/vprofile-v2.war', fingerprint: true
         }
         
         failure {
-            steps {
-                echo 'Build failed!'
-                // This is where you would add a Slack notification
-            }
+            echo 'Build failed!'
+            // This is where you would add a Slack notification
         }
     }
 }
