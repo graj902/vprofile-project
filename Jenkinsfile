@@ -11,31 +11,30 @@ pipeline {
         NEXUS_PASS = 'Maafa143@#'
         RELEASE_REPO = 'vprofile-release'
         CENTRAL_REPO = 'vprofile-maven-central'
-        NEXUSIP = '172.31.42.72' // This is your Nexus Private IP
+        NEXUSIP = '172.31.42.72'
         NEXUSPORT = '8081'
-        NEXUS_GRP_REPO = 'vprofile--maven-group' // Correct double-dash name
+        NEXUS_GRP_REPO = 'vprofile--maven-group'
         NEXUS_LOGIN = 'nexuslogin'
     }
 
     stages {
         stage('Build'){
             steps {
-                // We use 'package' to create the .war file
-                // We also skip tests here because we have a dedicated Test stage
+                // Use 'package' to create the .war, skip tests
                 sh 'mvn -s settings.xml -DskipTests package'
             }
         } 
         
         stage('Test'){
             steps {
-                // This command runs the tests and generates the JaCoCo report
+                // Run tests to generate code coverage data
                 sh 'mvn -s settings.xml test'
             }
         } 
         
         stage ('Checkstyle') {
             steps {
-                // This runs the code style analysis
+                // Run static code analysis
                 sh 'mvn -s settings.xml checkstyle:checkstyle'
             }
         }
@@ -48,8 +47,8 @@ pipeline {
         success {
             steps {
                 echo 'Build was successful. Archiving the .war file...'
-                // This command finds the .war file in the target directory
-                // and saves it as a build artifact.
+                // This command finds the .war file and saves it
+                // as a build artifact, just like in the video.
                 archiveArtifacts artifacts: 'target/vprofile-v2.war', fingerprint: true
             }
         }
@@ -57,7 +56,7 @@ pipeline {
         failure {
             steps {
                 echo 'Build failed!'
-                // In a real project, you would add a Slack or email notification here
+                // This is where you would add a Slack notification
             }
         }
     }
