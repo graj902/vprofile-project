@@ -1,13 +1,20 @@
+// This color map MUST be outside the pipeline block
+def colorMap = [
+    'SUCCESS': 'good',
+    'UNSTABLE': 'warning',
+    'FAILURE': 'danger'
+]
+
 pipeline {
     agent any
-    
     tools {
-        maven "MAVEN3"
-        jdk "OracleJDK11"
+        // 🔴 FIXED: Restored your specific tool names
+        maven "Maven3.9"
+        jdk "JDK17"
     }
-
+    
     environment {
-        // --- Nexus & Sonar Variables (Keep as is) ---
+        // --- Nexus Variables ---
         SNAP_REPO = 'vprofile-snapshot'
         NEXUS_USER = 'admin'
         NEXUS_PASS = 'Maafa143@#'
@@ -17,10 +24,14 @@ pipeline {
         NEXUSPORT = '8081'
         NEXUS_GRP_REPO = 'vprofile--maven-group'
         NEXUS_LOGIN_ID = 'nexus-login' 
+
+        // --- SonarQube Variables ---
         SONAR_SERVER = 'Sonar-server'
+
+        // --- Slack Variables ---
         SLACK_CHANNEL = 'jenkins-cicd'
         
-        // --- Docker/ECR Variables (FIXED) ---
+        // --- Docker/ECR Variables ---
         // 1. REGISTRY: Just the domain (NO repo name at the end)
         REGISTRY = "951247597157.dkr.ecr.ap-south-1.amazonaws.com"
         
@@ -96,21 +107,19 @@ pipeline {
             }
         }
         
-        // 🟢 FIXED STAGE: Build and Push to ECR
+        // 🟢 Build and Push to ECR
         stage('Build and Push Image') {
             steps {
                 script {
-                    // Correct Dockerfile path
                     def dockerfile = 'Docker-files/app/multistage/Dockerfile'
                     
-                    // 1. Login to the Registry Domain (https://951247....amazonaws.com)
+                    // Login to the Registry Domain
                     docker.withRegistry('https://' + REGISTRY, registryCredential) {
                         
-                        // 2. Build the image: "registry/repo_name:tag"
-                        // This creates the full tag required by ECR
+                        // Build the image: "registry/repo_name:tag"
                         def appImage = docker.build(REGISTRY + "/" + APP_NAME + ":v" + BUILD_NUMBER, "-f ${dockerfile} .")
                         
-                        // 3. Push the image
+                        // Push the image
                         appImage.push()
                         appImage.push('latest')
                     }
@@ -118,14 +127,15 @@ pipeline {
             }
         }
     } 
+
     post {
         always {
             archiveArtifacts artifacts: 'target/vprofile-v2*.war', fingerprint: true
             echo 'Sending Slack notification...'
             slackSend (
+                color: colorMap.get(currentBuild.currentResult, 'warning'), 
                 channel: env.SLACK_CHANNEL,
-                color: 'good',
-                message: "${currentBuild.currentResult}: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER}"
+                message: "${currentBuild.currentResult}: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} \nMore info at: ${env.BUILD_URL}"
             )
         }
     }
