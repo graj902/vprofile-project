@@ -1,20 +1,13 @@
-// This color map MUST be outside the pipeline block
-// its a new piepline for cicd with docker and ecr
-def colorMap = [
-    'SUCCESS': 'good',
-    'UNSTABLE': 'warning',
-    'FAILURE': 'danger'
-]
-
 pipeline {
     agent any
-    tools {
-        maven "Maven3.9"
-        jdk "JDK17"
-    }
     
+    tools {
+        maven "MAVEN3"
+        jdk "OracleJDK11"
+    }
+
     environment {
-        // --- Nexus Variables ---
+        // --- Nexus & Sonar Variables (Keep as is) ---
         SNAP_REPO = 'vprofile-snapshot'
         NEXUS_USER = 'admin'
         NEXUS_PASS = 'Maafa143@#'
@@ -24,18 +17,18 @@ pipeline {
         NEXUSPORT = '8081'
         NEXUS_GRP_REPO = 'vprofile--maven-group'
         NEXUS_LOGIN_ID = 'nexus-login' 
-
-        // --- SonarQube Variables ---
         SONAR_SERVER = 'Sonar-server'
-
-        // --- Slack Variables ---
         SLACK_CHANNEL = 'jenkins-cicd'
         
-        // --- Docker/ECR Variables (NEW) ---
-        // 🔴 Updated with your specific Registry URL
-        REGISTRY = "951247597157.dkr.ecr.ap-south-1.amazonaws.com/vprofile-app-img"
-        registryCredential = "aws-creds"
+        // --- Docker/ECR Variables (FIXED) ---
+        // 1. REGISTRY: Just the domain (NO repo name at the end)
+        REGISTRY = "951247597157.dkr.ecr.ap-south-1.amazonaws.com"
+        
+        // 2. APP_NAME: The exact repository name in ECR
         APP_NAME = "vprofile-app-img"
+        
+        // 3. Credential ID from Jenkins
+        registryCredential = "aws-creds"
     }
 
     stages {
@@ -75,7 +68,6 @@ pipeline {
             }
         }
         
-        // Moved Quality Gate HERE to block Docker build if analysis fails
         stage('Quality Gate') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
@@ -104,20 +96,21 @@ pipeline {
             }
         }
         
-        // 🟢 NEW STAGE: Build and Push to ECR
+        // 🟢 FIXED STAGE: Build and Push to ECR
         stage('Build and Push Image') {
             steps {
                 script {
-                    // Use the multistage Dockerfile we fixed
+                    // Correct Dockerfile path
                     def dockerfile = 'Docker-files/app/multistage/Dockerfile'
                     
-                    // Login to ECR using the plugin
+                    // 1. Login to the Registry Domain (https://951247....amazonaws.com)
                     docker.withRegistry('https://' + REGISTRY, registryCredential) {
                         
-                        // Build image with Build Number tag
-                        def appImage = docker.build(APP_NAME + ":v" + BUILD_NUMBER, "-f ${dockerfile} .")
+                        // 2. Build the image: "registry/repo_name:tag"
+                        // This creates the full tag required by ECR
+                        def appImage = docker.build(REGISTRY + "/" + APP_NAME + ":v" + BUILD_NUMBER, "-f ${dockerfile} .")
                         
-                        // Push to ECR
+                        // 3. Push the image
                         appImage.push()
                         appImage.push('latest')
                     }
@@ -125,16 +118,14 @@ pipeline {
             }
         }
     } 
-
     post {
         always {
             archiveArtifacts artifacts: 'target/vprofile-v2*.war', fingerprint: true
-            
             echo 'Sending Slack notification...'
             slackSend (
-                color: colorMap.get(currentBuild.currentResult, 'warning'), 
                 channel: env.SLACK_CHANNEL,
-                message: "${currentBuild.currentResult}: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} \nMore info at: ${env.BUILD_URL}"
+                color: 'good',
+                message: "${currentBuild.currentResult}: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER}"
             )
         }
     }
