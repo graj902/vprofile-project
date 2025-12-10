@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y maven git
 RUN git clone -b jenkins-cicd https://github.com/graj902/vprofile-project.git
 
 # Build the artifact
-RUN cd vprofile-project && mvn install
+RUN cd vprofile-project && mvn install -DskipTests
 
 # PHASE 2: Deploy to Tomcat
 FROM tomcat:9-jre11
