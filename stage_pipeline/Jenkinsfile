@@ -31,17 +31,15 @@ pipeline {
         SLACK_CHANNEL = 'jenkins-cicd'
         
         // --- Docker/ECR Variables ---
-        // 1. REGISTRY: Just the domain
         REGISTRY = "951247597157.dkr.ecr.ap-south-1.amazonaws.com"
-        
-        // 2. APP_NAME: The exact repository name in ECR
         APP_NAME = "vprofile-app-img"
-        
-        // 3. Credential ID from Jenkins (The Username/Password one you created)
         registryCredential = "aws-creds"
-        
-        // 4. AWS Region
         AWS_REGION = "ap-south-1"
+        
+        // --- ECS Variables (NEW) ---
+        // 🔴 CHECK: Ensure these names match your ECS Cluster/Service exactly
+        ECS_CLUSTER = "vprofile-app-stagin"
+        ECS_SERVICE = "vprofile-app-svc"
     }
 
     stages {
@@ -109,29 +107,34 @@ pipeline {
             }
         }
         
-        // 🟢 FIXED STAGE: Manual Docker Login & Push
         stage('Build and Push Image') {
             steps {
                 script {
                     def dockerfile = 'Docker-files/app/multistage/Dockerfile'
                     def imageTag = "${REGISTRY}/${APP_NAME}:v${BUILD_NUMBER}"
                     
-                    // Inject the AWS Creds into environment variables
                     withCredentials([usernamePassword(credentialsId: registryCredential, passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
-                        
-                        // 1. Authenticate to ECR using AWS CLI
                         sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY}"
-                        
-                        // 2. Build the Docker Image
                         sh "docker build -t ${imageTag} -f ${dockerfile} ."
-                        
-                        // 3. Push the specific version tag
                         sh "docker push ${imageTag}"
-                        
-                        // 4. Tag and Push 'latest'
                         sh "docker tag ${imageTag} ${REGISTRY}/${APP_NAME}:latest"
                         sh "docker push ${REGISTRY}/${APP_NAME}:latest"
                     }
+                }
+            }
+        }
+
+        // 🟢 NEW STAGE: Deploy to ECS
+        stage('Deploy to Staging ECS') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: registryCredential, passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh """
+                    aws ecs update-service \
+                    --cluster ${ECS_CLUSTER} \
+                    --service ${ECS_SERVICE} \
+                    --force-new-deployment \
+                    --region ${AWS_REGION}
+                    """
                 }
             }
         }
