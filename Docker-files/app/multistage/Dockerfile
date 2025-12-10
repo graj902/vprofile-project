@@ -1,12 +1,15 @@
-FROM maven:3.9.9-eclipse-temurin-21-jammy AS BUILD_IMAGE
-RUN git clone https://github.com/hkhcoder/vprofile-project.git
-RUN cd vprofile-project && git checkout docker && mvn install
+# PHASE 1: Build the code
+# We use lowercase 'build_image' to avoid plugin errors
+FROM openjdk:8 AS build_image
+RUN apt update && apt install maven -y
+# Clone your specific branch
+RUN git clone -b jenkins-cicd https://github.com/graj902/vprofile-project.git
+RUN cd vprofile-project && mvn install
 
-FROM tomcat:10-jdk21
-
+# PHASE 2: Deploy to Tomcat
+FROM tomcat:9-jre11
 RUN rm -rf /usr/local/tomcat/webapps/*
-
-COPY --from=BUILD_IMAGE vprofile-project/target/vprofile-v2.war /usr/local/tomcat/webapps/ROOT.war
-
+# Copy the artifact from the build_image phase
+COPY --from=build_image vprofile-project/target/vprofile-v2.war /usr/local/tomcat/webapps/ROOT.war
 EXPOSE 8080
 CMD ["catalina.sh", "run"]

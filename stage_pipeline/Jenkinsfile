@@ -1,4 +1,5 @@
 // This color map MUST be outside the pipeline block
+// its a new piepline for cicd with docker and ecr
 def colorMap = [
     'SUCCESS': 'good',
     'UNSTABLE': 'warning',
