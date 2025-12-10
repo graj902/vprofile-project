@@ -1,6 +1,6 @@
 # PHASE 1: Build the code
-# "openjdk:8" is deprecated. We use "eclipse-temurin:8-jdk" instead.
-FROM eclipse-temurin:8-jdk AS build_image
+# UPDATED: Using Java 17 to match pom.xml requirements
+FROM eclipse-temurin:17-jdk AS build_image
 
 # Install Maven and Git
 RUN apt-get update && apt-get install -y maven git
